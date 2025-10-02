@@ -1,0 +1,13 @@
+setuptools
+scikit-learn<1.6.0
+fasterrisk
+matplotlib==3.9.2
+jax
+jaxlib
+pandas==1.5.2
+active-semi-supervised-clustering
+snakemake
+pulp<2.8
+openpyxl
+metric-learn
+seaborn
