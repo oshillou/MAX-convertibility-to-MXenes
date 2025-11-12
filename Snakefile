@@ -61,7 +61,7 @@ rule crossvalidate_interpretation:
     output:
         "analysis/{model}_{n_clusters}_crossvalidated.csv",
     shell:
-        "{python} scripts/analysis/interprete_crossvalidation.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output}"
+        "{python} scripts/analysis/interprete_crossvalidation.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output} --max_tests 30"
 
 
 # This rule compares the main clustering (not the validation runs) by creating matrices that describe connectivities and similarities of clusterings

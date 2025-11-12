@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument("--pu_labels", type=str, default="data/targets.csv")
     parser.add_argument("--clustering_file", type=str, default="clusters.csv")
     parser.add_argument("--results_file", type=str, default="interpretation.csv")
+    parser.add_argument("--max_tests", type=int, default=20)
 
     args = parser.parse_args()
 
@@ -50,10 +51,10 @@ def main():
 
     results = []
 
-    for number_features in range(2, 10+1):
-        print(f"Performing cross-validation for {number_features} features")
+    for number_tests in range(2, args.max_tests+1):
+        print(f"Performing cross-validation for {number_tests} features")
         for i, (train_indices, test_indices) in enumerate(splitter.split(X_binned, targets)):
-            optimiser = RiskScoreOptimizer(X = X_binned[train_indices], y = targets[train_indices], k = number_features, parent_size = number_models)
+            optimiser = RiskScoreOptimizer(X = X_binned[train_indices], y = targets[train_indices], k = number_tests, parent_size = number_models)
 
             print("Starting optimisation")
             optimiser.optimize()
@@ -64,7 +65,7 @@ def main():
                 y_pred_train = final_classifier.predict_prob(X_binned[train_indices])
                 y_pred_test = final_classifier.predict_prob(X_binned[test_indices])
 
-                local_result = {"features":number_features, "fold":i}
+                local_result = {"tests":number_tests, "fold":i}
 
                 local_result["train_accuracy"] = metrics.accuracy_score(pseudo_labels[train_indices], y_pred_train>0.5)
                 local_result["test_accuracy"] = metrics.accuracy_score(pseudo_labels[test_indices], y_pred_test>0.5)
@@ -72,6 +73,10 @@ def main():
                 local_result["test_f1"] = metrics.f1_score(pseudo_labels[test_indices], y_pred_test>0.5)
                 local_result["train_auc"] = metrics.roc_auc_score(pseudo_labels[train_indices], y_pred_train)
                 local_result["test_auc"] = metrics.roc_auc_score(pseudo_labels[test_indices], y_pred_test)
+                local_result["train_recall"] = metrics.recall_score(pseudo_labels[train_indices], y_pred_train>0.5)
+                local_result["test_recall"] = metrics.recall_score(pseudo_labels[test_indices], y_pred_test>0.5)
+                local_result["train_precision"] = metrics.precision_score(pseudo_labels[train_indices], y_pred_train>0.5, zero_division=0)
+                local_result["test_precision"] = metrics.precision_score(pseudo_labels[test_indices], y_pred_test>0.5, zero_division=0)
             results += [local_result]
     results = pd.DataFrame(results)
 

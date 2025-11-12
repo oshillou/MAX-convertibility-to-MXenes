@@ -4,13 +4,29 @@ import pandas as pd
 import numpy as np
 from sklearn import metrics, manifold, preprocessing, ensemble, inspection
 from sklearn.utils.class_weight import compute_sample_weight
+from matplotlib import pyplot as plt
+import sys
+from io import StringIO
+from ase.formula import Formula
+
+## Currently, fasterrisk uses the log loss, which is not adequate for imbalanced datasets
+## Unfortunately, the log loss is hidden in the utils: https://github.com/interpretml/FasterRisk/blob/main/src/fasterrisk/utils.py
+## and the current API does not allow to parameterise it
+
+# So we have to shunt this function before importing the fasterrisk model
+# To parametrise the weights, we make use of a global variable
+sample_weights = np.zeros(10)
+def weighted_logistic_loss(yXB):
+    loss_terms = np.log(1.+np.exp(-yXB))
+    loss_terms = loss_terms * sample_weights
+    return loss_terms.sum() / sample_weights.sum()
+
+import fasterrisk.utils
+fasterrisk.utils.compute_logisticLoss_from_yXB = weighted_logistic_loss
+
 from fasterrisk.binarization_util import convert_continuous_df_to_binary_df
 from fasterrisk.fasterrisk import RiskScoreClassifier, RiskScoreOptimizer
 from fasterrisk.utils import get_support_indices
-from matplotlib import pyplot as plt
-import sys
-from io import StringIO 
-from ase.formula import Formula
 
 class Capturing(list):
     # Code from: https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
@@ -35,12 +51,14 @@ def get_args():
     parser.add_argument("--feature_importance", type=str, default="feature_importance.csv")
     parser.add_argument("--score_file", type=str, default="score.xlsx")
     parser.add_argument("--tsne_file", type=str, default="tsne.pdf")
+    parser.add_argument("--n_tests", type=int, default=20)
 
     args = parser.parse_args()
 
     assert os.path.exists(args.continuous_data)
     assert os.path.exists(args.categorical_data)
     assert os.path.exists(args.pu_labels)
+    assert args.n_tests > 0
 
     return args
 
@@ -51,6 +69,8 @@ def max2mx(max_name):
     return Formula(mx_name_unsorted).format("metal")
 
 def main():
+    global sample_weights
+
     args = get_args()
 
     print("Loading data")
@@ -86,10 +106,13 @@ def main():
     X_binned = convert_continuous_df_to_binary_df(X)
     targets = 2*pseudo_labels-1
 
-    number_features = 10
+    number_features = args.n_tests
     number_models = 1
 
     optimiser = RiskScoreOptimizer(X = X_binned.to_numpy(), y = targets, k = number_features, parent_size = number_models)
+
+    print("Computing sample weights")
+    sample_weights = compute_sample_weight("balanced", pseudo_labels)
 
     print("Starting optimisation")
     optimiser.optimize()
@@ -99,7 +122,7 @@ def main():
     all_pseudo_predictions = []
     with Capturing() as output:
         for multiplier, intercept, coefficients in zip(multipliers[:number_models], sparseDiversePool_beta0_integer[:number_models], sparseDiversePool_betas_integer[:number_models]):
-            final_classifier = RiskScoreClassifier(multiplier, intercept, coefficients)
+            final_classifier = RiskScoreClassifier(multiplier, intercept, coefficients, X_train=X_binned.to_numpy())
             y_pred = final_classifier.predict_prob(X_binned.to_numpy())
             final_classifier.reset_featureNames(X_binned.columns)
 
@@ -163,7 +186,7 @@ def main():
         feature_importance = inspection.permutation_importance(random_forest,
                                                                X,
                                                                pseudo_labels,
-                                                               n_repeats=10,
+                                                               n_repeats=args.n_tests,
                                                                random_state=0,
                                                                sample_weight=compute_sample_weight("balanced", pseudo_labels))
         print("Feature importances are:")

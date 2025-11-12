@@ -33,6 +33,7 @@ def get_args():
     parser.add_argument("--clustering_file", type=str, default="clusters.csv")
     parser.add_argument("--results_file", type=str, default="interpretation.txt")
     parser.add_argument("--feature_importance", type=str, default="feature_importance.csv")
+    parser.add_argument("--n_tests", type=int, default=20)
     parser.add_argument("--score_file", type=str, default="score.xlsx")
     parser.add_argument("--tsne_file", type=str, default="tsne.pdf")
     parser.add_argument("--max_validation", type=int, default=None)
@@ -101,10 +102,9 @@ def main():
     X_binned = convert_continuous_df_to_binary_df(X)
     targets = 2*pseudo_labels-1
 
-    number_features = 10
     number_models = 1
 
-    optimiser = RiskScoreOptimizer(X = X_binned.to_numpy()[train_indices], y = targets[train_indices], k = number_features, parent_size = number_models)
+    optimiser = RiskScoreOptimizer(X = X_binned.to_numpy()[train_indices], y = targets[train_indices], k = args.n_tests, parent_size = number_models)
 
     print("Starting optimisation")
     optimiser.optimize()
@@ -211,7 +211,7 @@ def main():
         feature_importance = inspection.permutation_importance(random_forest,
                                                                X.iloc[train_indices],
                                                                pseudo_labels[train_indices],
-                                                               n_repeats=10,
+                                                               n_repeats=args.n_tests,
                                                                random_state=0,
                                                                sample_weight=compute_sample_weight("balanced", pseudo_labels[train_indices]))
         print("Feature importances are:")

@@ -2,7 +2,7 @@ from sklearn import base, ensemble, linear_model
 from sklearn.metrics import pairwise
 import numpy as np
 from sklearn.preprocessing import KernelCenterer
-import discotec
+from . import discotec
 from .kernelkmeans import PUKernelKMeans
 
 # For parameter validation
@@ -144,9 +144,9 @@ class PUMKLKmeans(base.BaseEstimator, base.ClusterMixin):
             
             if self.discotec_target and i>=self.n_initial_candidates-1:
                 # To evaluate potential candidates, we first compute the discotec score of our new set of solutions
-                consensus_matrix = discotec.compute_consensus_matrix(clusterings[:i+1])
+                consensus_matrix = discotec.compute_consensus_matrix(clusterings[:i + 1])
                 binary_consensus = (consensus_matrix>consensus_matrix.mean()).astype(float)
-                scores_discotec[:i+1] = discotec.compute_tv_ranking(clusterings[:i+1], binary_consensus)
+                scores_discotec[:i+1] = discotec.compute_tv_ranking(clusterings[:i + 1], binary_consensus)
 
             
 
