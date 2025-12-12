@@ -114,7 +114,7 @@ def main():
     all_pseudo_predictions = []
     with Capturing() as output:
         for multiplier, intercept, coefficients in zip(multipliers[:number_models], sparseDiversePool_beta0_integer[:number_models], sparseDiversePool_betas_integer[:number_models]):
-            final_classifier = RiskScoreClassifier(multiplier, intercept, coefficients)
+            final_classifier = RiskScoreClassifier(multiplier, intercept, coefficients, X_train=X_binned.to_numpy()[train_indices])
             y_pred = final_classifier.predict_prob(X_binned.to_numpy())
             final_classifier.reset_featureNames(X_binned.columns)
 
