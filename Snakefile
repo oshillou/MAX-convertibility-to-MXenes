@@ -1,250 +1,180 @@
-path_to_calculated_data = "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_calculated.csv"
-path_to_elemental_data = "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_elemental.csv"
-path_to_synthesized_data = "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/synthesized-MXenes-MAX.xlsx"
 python = ".\\.conda\\python.exe"
 
 models = ["kmeans", "pumkl", "copkmeans", "pckmeans"]#, "mpckmeans"]#, "rcakmeans"]
 n_positive=16
 n_mxenes=10
 n_clusters = [150]
+years_list = [2011,2012,2013,2014,2016,2017,2018,2019,2020,2024]
 
 wildcard_constraints:
     n_clusters="\d+",
-    validation_index="\d+"
+    validation_index="\d+",
+    leaveout_mode="(max_include|max_exclude|mx_include|mx_exclude)"
 
-def get_validation_max_models(wildcards):
-    return get_validation_models(wildcards, "max", n_positive)
+def get_clustering_leaveout_params(wildcards):
+    phase, inclusion = wildcards.leaveout_mode.split("_")
+    params = []
+    if phase == "max":
+        params += ["--validate_max"]
+    else:
+        params += ["--validate_mx"]
+    params += [str(wildcards.validation_index)]
+    if inclusion=="exclude":
+        params += ["--exclude_validation"]
+    return " ".join(params)
 
-def get_validation_mx_models(wildcards):
-    return get_validation_models(wildcards, "mx", n_mxenes)
-
-def get_validation_models(wildcards, compound="max", n_items=10):
-    return [f"results/validate_{compound}_{wildcards.inclusion}/{wildcards.model}_{wildcards.n_clusters}_val{i}.csv" for i in range(n_items)]
-
-def get_main_models(wildcards):
-    return [f"results/{model}_{wildcards.n_clusters}.csv" for model in models]
 
 
 rule all:
     input:
-        expand("analysis/{model}_{n_clusters}_{result}", model=models, n_clusters=n_clusters, result=["tsne.pdf", "interpretation.txt", "scores.xlsx", "feature_importance.csv", "crossvalidated.csv"]),
-        #expand("analysis/validate/{model}_{n_clusters}_validation.txt", model=models, n_clusters=n_clusters),
-        #expand("analysis/validate/{model}_{n_clusters}_connectivity.pdf", model=models, n_clusters=n_clusters),
-        expand("analysis/validate_max_{inclusion}/{model}_{n_clusters}_val{validation_index}_interpretation.txt", inclusion=["exclude", "include"], model=models, n_clusters=n_clusters, validation_index=range(n_positive)),
-        expand("analysis/validate_mx_{inclusion}/{model}_{n_clusters}_val{validation_index}_interpretation.txt", inclusion=["exclude", "include"], model=models, n_clusters=n_clusters, validation_index=range(n_mxenes)),
-        expand("analysis/validate_{phase}_{inclusion}/{model}_{n_clusters}_validation.txt", phase=["max", "mx"], inclusion=["exclude", "include"], model=models, n_clusters=n_clusters, validation_index=range(n_positive)),
-        expand("analysis/pumkl_{n_clusters}_distances.csv", n_clusters=n_clusters),
-        expand("analysis/{model}_{n_clusters}_eucdistances.csv", n_clusters=n_clusters, model=models),
+        expand("results/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores.xlsx",
+            scoring_filename=[config["scoring_filename"]],
+            model_filename=[config["clustering_filename"]],
+            scoring_model=[config["scoring_model"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]]
+        ),
+        expand("validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores.xlsx",
+            year=years_list,
+            scoring_filename=[config["scoring_filename"]],
+            model_filename=[config["clustering_filename"]],
+            scoring_model=[config["scoring_model"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]]
+        ),
+        expand("validation/max_{inclusion}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+            inclusion=["include","exclude"],
+            scoring_filename=[config["scoring_filename"]],
+            model_filename=[config["clustering_filename"]],
+            scoring_model=[config["scoring_model"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]],
+            validation_index = range(n_positive)
+        ),
+        expand("validation/mx_{inclusion}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+            inclusion=["include","exclude"],
+            scoring_filename=[config["scoring_filename"]],
+            model_filename=[config["clustering_filename"]],
+            scoring_model=[config["scoring_model"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]],
+            validation_index=range(n_mxenes)
+        ),
+        expand("results/visualisation/{model_filename}/{model}_{n_clusters}.pdf",
+           model_filename=[config["clustering_filename"]],
+           model=[config["clustering_model"]],
+           n_clusters=[config["n_clusters"]]
+        ),
 
-# This rule runs fasterrisk for interpreting some clustering results
-rule interprete_clustering:
+rule validation_scoring_fasterrisk:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv",
-        clustering="results/{model}_{n_clusters}.csv",
+        clustering="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_clusters_val{validation_index}.csv"
     output:
-        tsne="analysis/{model}_{n_clusters}_tsne.pdf",
-        interpretation="analysis/{model}_{n_clusters}_interpretation.txt",
-        scores="analysis/{model}_{n_clusters}_scores.xlsx",
-        importance="analysis/{model}_{n_clusters}_feature_importance.csv"
+        interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
+        scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
     shell:
-        "{python} scripts/analysis/interprete.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --tsne_file {output.tsne} --results_file {output.interpretation} --score_file {output.scores} --feature_importance {output.importance}"
+        "{python} scripts/scoring/compute_fasterrisk.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
-# This rule cross-validates the interpration model for the main clustering
-rule crossvalidate_interpretation:
+
+rule timeline_scoring_fasterrisk:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels_{year}.csv",
+        clustering="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_clusters.csv"
+    output:
+        interpretation="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation.txt",
+        scores="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores.xlsx",
+    shell:
+        "{python} scripts/scoring/compute_fasterrisk.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+
+rule main_scoring_fasterrisk:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv",
-        clustering="results/{model}_{n_clusters}.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv"
     output:
-        "analysis/{model}_{n_clusters}_crossvalidated.csv",
+        interpretation="results/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation.txt",
+        scores="results/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores.xlsx",
     shell:
-        "{python} scripts/analysis/interprete_crossvalidation.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output} --max_tests 30"
+        "{python} scripts/scoring/compute_fasterrisk.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
-# This rule compares the main clustering (not the validation runs) by creating matrices that describe connectivities and similarities of clusterings
-rule compare_clusterings:
-    input:
-        pu_labels="data/pu_labels.csv",
-        models=get_main_models
-    output:
-        multiclass_ari="analysis/multiclass_ari_{n_clusters}.pdf",
-        binaryclass_ari="analysis/binaryclass_ari_{n_clusters}.pdf",
-        connectivity="analysis/compound_connectivity_{n_clusters}.pdf",
-    shell:
-        "{python} scripts/analysis/compare.py --pu_labels {input.pu_labels} --clustering_files {input.models} --multiclass_ari_plot {output.multiclass_ari} --binaryclass_ari_plot {output.binaryclass_ari} --connectivity_plot {output.connectivity}"
-
-# This rule aggregates all the validation runs and exports some metrics for analysis
-rule summarise_mx_validation:
-    input:
-        pu_labels="data/pu_labels.csv",
-        validation=get_validation_mx_models
-    output:
-        text="analysis/validate_mx_{inclusion}/{model}_{n_clusters}_validation.txt",
-        heatmap="analysis/validate_mx_{inclusion}/{model}_{n_clusters}_connectivity.pdf"
-    shell:
-        "{python} scripts/analysis/summarise_mx_validation.py --pu_labels {input.pu_labels} --clustering_files {input.validation} --validation_file {output.text} --validation_heatmap {output.heatmap}"
-
-rule summarise_max_validation:
-    input:
-        pu_labels="data/pu_labels.csv",
-        validation=get_validation_max_models
-    output:
-        text="analysis/validate_max_{inclusion}/{model}_{n_clusters}_validation.txt",
-        heatmap="analysis/validate_max_{inclusion}/{model}_{n_clusters}_connectivity.pdf"
-    shell:
-        "{python} scripts/analysis/summarise_max_validation.py --pu_labels {input.pu_labels} --clustering_files {input.validation} --validation_file {output.text} --validation_heatmap {output.heatmap}"
-
-# This rule runs the clustering algorithm while masking the positive sample numbe 'validation_index'
-rule validate_mx_exclude_interprete:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv",
-        clustering="results/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}.csv"
-    output:
-        tsne="analysis/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}_tsne.pdf",
-        interpretation="analysis/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}_interpretation.txt",
-        scores="analysis/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}_scores.xlsx",
-        importance="analysis/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}_feature_importance.csv"
-    shell:
-        "{python} scripts/analysis/interprete_validation.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --tsne_file {output.tsne} --results_file {output.interpretation} --score_file {output.scores} --feature_importance {output.importance}"
-
-
-rule validate_mx_exclude_clustering:
+# performs the leave-"one"-out cross validation for the clustering model
+# Masked MAX or MX compounds may be included or excluded from the training set of a clustering algorithm
+# In both cases, their label is masked
+rule validate_clustering:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv"
     output:
-        clustering="results/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}.csv",
-        model="models/validate_mx_exclude/{model}_{n_clusters}_val{validation_index}.csv"
+        clustering="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_clusters_val{validation_index}.csv",
+        model="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_weights_val{validation_index}.pkl",
+        distance="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_distances_val{validation_index}.csv"
+    params:
+        get_clustering_leaveout_params
     shell:
-        "{python} scripts/clustering/main.py --exclude_validation --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --validate_mx {wildcards.validation_index} --model_file {output.model}"
+        "{python} scripts/clustering/main.py {params} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --model_file {output.model} --distance_file {output.distance}"
 
+# Creates a tsne of the main clustering results
+rule visualise_clustering:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical_data="data/categorical_data.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv",
+    output:
+        "results/visualisation/{model_filename}/{model}_{n_clusters}.pdf"
+    shell:
+        "{python} scripts/visualisation/compute_tsne.py --continuous_data {input.continuous} --categorical_data {input.categorical_data} --clustering_file {input.clustering} --output_file {output}"
 
-rule validate_max_exclude_interprete:
+# This rule performs the main clustering on the dataset while using a different set of constraints for timeline
+# #validation
+rule perform_timeline_clustering:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv",
-        clustering="results/validate_max_exclude/{model}_{n_clusters}_val{validation_index}.csv"
+        pu_labels="data/pu_labels_{year}.csv"
     output:
-        tsne="analysis/validate_max_exclude/{model}_{n_clusters}_val{validation_index}_tsne.pdf",
-        interpretation="analysis/validate_max_exclude/{model}_{n_clusters}_val{validation_index}_interpretation.txt",
-        scores="analysis/validate_max_exclude/{model}_{n_clusters}_val{validation_index}_scores.xlsx",
-        importance="analysis/validate_max_exclude/{model}_{n_clusters}_val{validation_index}_feature_importance.csv"
+        clustering="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_clusters.csv",
+        model="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_weights.pkl",
+        distance="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_distances.csv"
     shell:
-        "{python} scripts/analysis/interprete_validation.py --exclude_validation --max_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --tsne_file {output.tsne} --results_file {output.interpretation} --score_file {output.scores} --feature_importance {output.importance}"
-
-
-rule validate_max_exclude_clustering:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv"
-    output:
-        clustering="results/validate_max_exclude/{model}_{n_clusters}_val{validation_index}.csv",
-        model="models/validate_max_exclude/{model}_{n_clusters}_val{validation_index}.csv"
-    shell:
-        "{python} scripts/clustering/main.py --exclude_validation --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --validate_max {wildcards.validation_index} --model_file {output.model}"
-
-rule validate_mx_include_interprete:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv",
-        clustering="results/validate_mx_include/{model}_{n_clusters}_val{validation_index}.csv"
-    output:
-        tsne="analysis/validate_mx_include/{model}_{n_clusters}_val{validation_index}_tsne.pdf",
-        interpretation="analysis/validate_mx_include/{model}_{n_clusters}_val{validation_index}_interpretation.txt",
-        scores="analysis/validate_mx_include/{model}_{n_clusters}_val{validation_index}_scores.xlsx",
-        importance="analysis/validate_mx_include/{model}_{n_clusters}_val{validation_index}_feature_importance.csv"
-    shell:
-        "{python} scripts/analysis/interprete_validation.py --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --tsne_file {output.tsne} --results_file {output.interpretation} --score_file {output.scores} --feature_importance {output.importance}"
-
-
-rule validate_mx_include_clustering:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv"
-    output:
-        clustering="results/validate_mx_include/{model}_{n_clusters}_val{validation_index}.csv",
-        model="models/validate_mx_include/{model}_{n_clusters}_val{validation_index}.csv"
-    shell:
-        "{python} scripts/clustering/main.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --validate_mx {wildcards.validation_index} --model_file {output.model}"
-
-rule validate_max_include_interprete:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv",
-        clustering="results/validate_max_include/{model}_{n_clusters}_val{validation_index}.csv"
-    output:
-        tsne="analysis/validate_max_include/{model}_{n_clusters}_val{validation_index}_tsne.pdf",
-        interpretation="analysis/validate_max_include/{model}_{n_clusters}_val{validation_index}_interpretation.txt",
-        scores="analysis/validate_max_include/{model}_{n_clusters}_val{validation_index}_scores.xlsx",
-        importance="analysis/validate_max_include/{model}_{n_clusters}_val{validation_index}_feature_importance.csv"
-    shell:
-        "{python} scripts/analysis/interprete_validation.py --max_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --tsne_file {output.tsne} --results_file {output.interpretation} --score_file {output.scores} --feature_importance {output.importance}"
-
-
-rule validate_max_include_clustering:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        pu_labels="data/pu_labels.csv"
-    output:
-        clustering="results/validate_max_include/{model}_{n_clusters}_val{validation_index}.csv",
-        model="models/validate_max_include/{model}_{n_clusters}_val{validation_index}.csv"
-    shell:
-        "{python} scripts/clustering/main.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --validate_max {wildcards.validation_index} --model_file {output.model}"
-
-# This rule (specificaly for pumkl) computes the distance between each sample and the biggest positive cluster centroid
-rule pumkl_distance:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        model="models/pumkl_{n_clusters}.pkl",
-        clustering="results/pumkl_{n_clusters}.csv"
-    output:
-        "analysis/pumkl_{n_clusters}_distances.csv"
-    shell:
-        "{python} scripts/clustering/compute_distance_pumkl.py --continuous_data {input.continuous} --categorical_data {input.categorical} --model_file {input.model} --clustering_file {input.clustering} --output_file {output} "
-
-rule other_distance:
-    input:
-        continuous="data/continuous_data.csv",
-        categorical="data/categorical_data.csv",
-        clustering="results/{model}_{n_clusters}.csv"
-    output:
-        "analysis/{model}_{n_clusters}_eucdistances.csv"
-    shell:
-        "{python} scripts/clustering/compute_distance.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --output_file {output} "
+        "{python} scripts/clustering/main.py --seed 0 --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --model_file {output.model} --distance_file {output.distance}"
 
 # This rule performs the final global clustering (note the seed for reproducibility)
-rule perform_clustering:
+rule perform_main_clustering:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv"
     output:
-        clustering="results/{model}_{n_clusters}.csv",
-        model="models/{model}_{n_clusters}.pkl"
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv",
+        model="results/clustering/{model_filename}/{model}_{n_clusters}_weights.pkl",
+        distance="results/clustering/{model_filename}/{model}_{n_clusters}_distances.csv"
     shell:
-        "{python} scripts/clustering/main.py --seed 0 --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --model_file {output.model}"
+        "{python} scripts/clustering/main.py --seed 0 --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --n_clusters {wildcards.n_clusters} --clustering_model {wildcards.model} --clustering_file {output.clustering} --model_file {output.model} --distance_file {output.distance}"
 
-
+# For the timeline validation, this rule masks out convertible MAX phases that were discovered after a given year
+rule filter_targets_by_year:
+    input:
+        pu_labels="data/pu_labels.csv",
+        year_csv=config["path_to_label_years"],
+    output:
+        "data/pu_labels_{year}.csv"
+    shell:
+        "{python} scripts/data/filter_labels_by_year.py --pu_labels {input.pu_labels} --year_csv {input.year_csv} --year_cutoff {wildcards.year} --output_labels {output}"
 
 # This rule creates the dataset (scaled features from original source)
 rule make_dataset:
     input:
-        calculated=path_to_calculated_data,
-        elemental=path_to_elemental_data,
-        synthesized=path_to_synthesized_data,
+        calculated=config["path_to_calculated_data"],
+        elemental=config["path_to_elemental_data"],
+        synthesized=config["path_to_synthesized_data"],
     output:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",

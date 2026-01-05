@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--clustering_model", type=str, default="pumkl", choices=["pumkl", "kmeans", "pckmeans", "copkmeans", "mkmeans", "mpckmeans"])
     parser.add_argument("--model_file", type=str, default="model.pkl")
     parser.add_argument("--clustering_file", type=str, default="clusters.csv")
+    parser.add_argument("--distance_file", type=str, default="distances.csv")
     parser.add_argument("--seed", default=None, type=int)
     parser.add_argument("--validate_max", type=int, default=-1)
     parser.add_argument("--validate_mxene", type=int, default=-1)
@@ -88,10 +89,13 @@ def main():
     else:
         ml_constraints = list(itertools.combinations(np.nonzero(y)[0], r=2))
         if args.clustering_model == "pckmeans":
-            D = metrics.pairwise_distances(X_train[y_train==1], X_train, metric="sqeuclidean")
-            std_dist = D[np.triu_indices(len(D), k=1)].std()
-            del D
-            w = 2*std_dist / y_train.sum()
+            if y_train.sum() > 1: # More than one constrained sample
+                D = metrics.pairwise_distances(X_train[y_train==1], X_train, metric="sqeuclidean")
+                std_dist = D[np.triu_indices(len(D), k=1)].std()
+                del D
+                w = 2*std_dist / y_train.sum()
+            else:
+                w = np.ones(1) # Weight for a single constraint
             model = PCKMeans(n_clusters=args.n_clusters, w=w, random_state=args.seed)
         elif args.clustering_model == "copkmeans":
             model = COPKMeans(n_clusters=args.n_clusters, random_state=args.seed)
@@ -131,6 +135,31 @@ def main():
         final_clusters[clustering==k] = i+1
     
     pd.Series(final_clusters, name="Cluster", index=pu_labels.index).to_csv(args.clustering_file)
+
+    verbose_print(args,"Computing the distances between samples and the largest clusters")
+    # Note that by convention in the different clustering algorithms, the largest cluster
+    # is the number 1
+    if args.clustering_model == "pumkl":
+        # We have to use a kernel distance
+        kernels = [model._compute_kernel(X, **params) for params in model.kernel_params]
+        kernel_matrix = sum([kernels[j] * model.kernel_weights_[j] for j in range(model.n_kernels_)])
+        kernel_matrix = np.copy(kernel_matrix)
+        largest_positive_cluster, = np.where(clustering == 1)
+
+        # Distance between a centroid and a sample using a kernel matrix
+        distances = np.copy(np.diag(kernel_matrix))  # Sample term
+        distances += kernel_matrix[largest_positive_cluster][:, largest_positive_cluster].sum()  # Centroid term
+        distances -= 2 * kernel_matrix[:, largest_positive_cluster].sum(axis=1)  # Adversarial term
+
+        distances = np.maximum(distances, 0)
+    else:
+        # The regular Euclidean distance
+        centroid_largest_cluster = X[clustering==1].mean(axis=0, keepdims=True)
+        distances = metrics.pairwise_distances(X, centroid_largest_cluster).reshape((-1,))
+
+    verbose_print(args, "Exporting distances")
+    pd.Series(distances, name="Distance", index=pu_labels.index).to_csv(args.distance_file)
+
 
 
 if __name__ == "__main__":
