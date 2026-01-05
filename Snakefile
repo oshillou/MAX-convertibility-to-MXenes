@@ -62,13 +62,29 @@ rule all:
             n_clusters=[config["n_clusters"]],
             validation_index=range(n_mxenes)
         ),
+        expand("validation/cross_validation/{model_filename}/{model}_{n_clusters}_clusters_{scoring_model}.csv",
+            model_filename=[config["clustering_filename"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]],
+            scoring_model=[config["scoring_model"]]
+        ),
         expand("results/visualisation/{model_filename}/{model}_{n_clusters}.pdf",
            model_filename=[config["clustering_filename"]],
            model=[config["clustering_model"]],
            n_clusters=[config["n_clusters"]]
         ),
 
-rule validation_scoring_fasterrisk:
+rule crossvalidation_scoring:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv"
+    output:
+        "validation/cross_validation/{model_filename}/{model}_{n_clusters}_clusters_{scoring_model}.csv"
+    shell:
+        "{python} scripts/scoring/crossvalidate_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --results_file {output}"
+
+rule validation_scoring:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
