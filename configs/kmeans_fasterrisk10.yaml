@@ -1,0 +1,10 @@
+clustering_model: kmeans
+clustering_filename: "kmeans"
+n_clusters: 150
+scoring_model: fasterrisk
+scoring_filename: "fasterrisk_10"
+scoring_params:  "--n_tests 10"
+path_to_calculated_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_calculated.csv"
+path_to_elemental_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_elemental.csv"
+path_to_synthesized_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/synthesized-MXenes-MAX.xlsx"
+path_to_label_years: "MAX_MX_year.csv"
