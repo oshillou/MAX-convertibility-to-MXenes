@@ -50,7 +50,6 @@ def get_args():
     parser.add_argument("--results_file", type=str, default="interpretation.txt")
     parser.add_argument("--n_tests", type=int, default=20)
     parser.add_argument("--score_file", type=str, default="score.xlsx")
-    parser.add_argument("--tsne_file", type=str, default="tsne.pdf")
     parser.add_argument("--max_validation", type=int, default=None)
     parser.add_argument("--mx_validation", type=int, default=None)
     parser.add_argument("--exclude_validation", default=False, action="store_true")
