@@ -9,7 +9,9 @@ years_list = [2011,2012,2013,2014,2016,2017,2018,2019,2020,2024]
 wildcard_constraints:
     n_clusters="\d+",
     validation_index="\d+",
-    leaveout_mode="(max_include|max_exclude|mx_include|mx_exclude)"
+    leaveout_mode="(max_include|max_exclude|mx_include|mx_exclude)",
+    scoring_model="(fasterrisk|forest)",
+    model="(pumkl|pckmeans|kmeans|copkmeans)"
 
 def get_clustering_leaveout_params(wildcards):
     phase, inclusion = wildcards.leaveout_mode.split("_")
@@ -42,7 +44,7 @@ rule all:
             model=[config["clustering_model"]],
             n_clusters=[config["n_clusters"]]
         ),
-        expand("validation/max_{inclusion}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+        expand("validation/max_{inclusion}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
             inclusion=["include","exclude"],
             scoring_filename=[config["scoring_filename"]],
             model_filename=[config["clustering_filename"]],
@@ -51,7 +53,7 @@ rule all:
             n_clusters=[config["n_clusters"]],
             validation_index = range(n_positive)
         ),
-        expand("validation/mx_{inclusion}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+        expand("validation/mx_{inclusion}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
             inclusion=["include","exclude"],
             scoring_filename=[config["scoring_filename"]],
             model_filename=[config["clustering_filename"]],
@@ -60,48 +62,64 @@ rule all:
             n_clusters=[config["n_clusters"]],
             validation_index=range(n_mxenes)
         ),
+        expand("validation/cross_validation/{model_filename}/{model}_{n_clusters}_clusters_{scoring_model}.csv",
+            model_filename=[config["clustering_filename"]],
+            model=[config["clustering_model"]],
+            n_clusters=[config["n_clusters"]],
+            scoring_model=[config["scoring_model"]]
+        ),
         expand("results/visualisation/{model_filename}/{model}_{n_clusters}.pdf",
            model_filename=[config["clustering_filename"]],
            model=[config["clustering_model"]],
            n_clusters=[config["n_clusters"]]
         ),
 
-rule validation_scoring_fasterrisk:
+rule crossvalidation_scoring:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv"
+    output:
+        "validation/cross_validation/{model_filename}/{model}_{n_clusters}_clusters_{scoring_model}.csv"
+    shell:
+        "{python} scripts/scoring/crossvalidate_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --results_file {output}"
+
+rule validation_scoring:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv",
         clustering="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_clusters_val{validation_index}.csv"
     output:
-        interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
-        scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+        interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
+        scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
     shell:
-        "{python} scripts/scoring/compute_fasterrisk.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+        "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
-rule timeline_scoring_fasterrisk:
+rule timeline_scoring:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels_{year}.csv",
         clustering="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_clusters.csv"
     output:
-        interpretation="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation.txt",
-        scores="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores.xlsx",
+        interpretation="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_interpretation.txt",
+        scores="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores.xlsx",
     shell:
-        "{python} scripts/scoring/compute_fasterrisk.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+        "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
-rule main_scoring_fasterrisk:
+rule main_scoring:
     input:
         continuous="data/continuous_data.csv",
         categorical="data/categorical_data.csv",
         pu_labels="data/pu_labels.csv",
         clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv"
     output:
-        interpretation="results/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_interpretation.txt",
-        scores="results/scoring/{scoring_filename}/{model_filename}/fasterrisk_{model}_{n_clusters}_scores.xlsx",
+        interpretation="results/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_interpretation.txt",
+        scores="results/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores.xlsx",
     shell:
-        "{python} scripts/scoring/compute_fasterrisk.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+        "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
 # performs the leave-"one"-out cross validation for the clustering model
