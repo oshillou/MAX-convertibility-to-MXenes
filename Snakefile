@@ -84,6 +84,18 @@ rule crossvalidation_scoring:
     shell:
         "{python} scripts/scoring/crossvalidate_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --results_file {output}"
 
+rule crossvalidation_scoring_svc:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv",
+        model="results/clustering/{model_filename}/{model}_{n_clusters}_weights.pkl"
+    output:
+        "validation/cross_validation/{model_filename}/{model}_{n_clusters}_clusters_svc.csv"
+    shell:
+        "{python} scripts/scoring/crossvalidate_svc.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --model_file {input.model} --results_file {output}"
+
+
 rule validation_scoring:
     input:
         continuous="data/continuous_data.csv",
@@ -95,6 +107,19 @@ rule validation_scoring:
         scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
     shell:
         "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+
+rule validation_scoring_svc:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels.csv",
+        clustering="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_clusters_val{validation_index}.csv",
+        model="validation/{leaveout_mode}/clustering/{model_filename}/{model}_{n_clusters}_weights_val{validation_index}.pkl",
+    output:
+        interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
+        scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
+    shell:
+        "{python} scripts/scoring/compute_svc.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --model_file {input.model} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
 rule timeline_scoring:
@@ -109,6 +134,20 @@ rule timeline_scoring:
     shell:
         "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
+rule timeline_scoring_svc:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels_{year}.csv",
+        clustering="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_clusters.csv",
+        model="validation/timeline/clustering/{year}/{model_filename}/{model}_{n_clusters}_weights.pkl",
+    output:
+        interpretation="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_interpretation.txt",
+        scores="validation/timeline/scoring/{year}/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_scores.xlsx",
+    shell:
+        "{python} scripts/scoring/compute_svc.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} --model_file {input.model} "+config["scoring_params"]
+
+
 rule main_scoring:
     input:
         continuous="data/continuous_data.csv",
@@ -120,6 +159,19 @@ rule main_scoring:
         scores="results/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores.xlsx",
     shell:
         "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+
+rule main_scoring_svc:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels.csv",
+        clustering="results/clustering/{model_filename}/{model}_{n_clusters}_clusters.csv",
+        model="results/clustering/{model_filename}/{model}_{n_clusters}_weights.pkl"
+    output:
+        interpretation="results/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_interpretation.txt",
+        scores="results/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_scores.xlsx",
+    shell:
+        "{python} scripts/scoring/compute_svc.py --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --model_file {input.model} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
 # performs the leave-"one"-out cross validation for the clustering model

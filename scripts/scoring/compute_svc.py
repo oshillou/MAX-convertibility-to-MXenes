@@ -64,6 +64,9 @@ def pumkl_kernel(X, y=None, clustering_model=None):
         if y is None:
             kernel = kernel_centerer.fit_transform(kernel)
             kernel = len(kernel)*kernel / np.trace(kernel)
+        elif len(X)==len(y):
+            kernel = kernel_centerer.fit_transform(kernel)
+            kernel = len(kernel)*kernel / np.trace(kernel)
         else:
             # We have a y output that may be of different size than X
             # i.e. we predict on something else than the training data
@@ -85,7 +88,7 @@ def main():
     # In the case of SVC, we need to maintain the preprocessing in order to use the original kernels
     # that were used by pumkl
     # In contrast, fasterrisk and random forests are insensitive to scaling (only ordering matters)
-    X_cont = preprocessing.MinMaxScaler().fit_transform(X_cont)
+    X_cont = pd.DataFrame(preprocessing.MinMaxScaler().fit_transform(X_cont), columns=X_cont.columns, index=X_cont.index)
     X_cat = pd.read_csv(args.categorical_data, index_col=0)
     X = pd.concat([X_cont, X_cat], axis=1)
     pu_labels = pd.read_csv(args.pu_labels, index_col=0)
@@ -164,9 +167,10 @@ def main():
         feature_importance = inspection.permutation_importance(svc_model,
                                                                X.iloc[train_indices],
                                                                pseudo_labels[train_indices],
-                                                               n_repeats=20,
+                                                               n_repeats=5,
                                                                random_state=0,
-                                                               sample_weight=sample_weights)
+                                                               sample_weight=sample_weights,
+                                                               n_jobs=1)
 
 
         print("Top 20 feature importances are:")
@@ -194,7 +198,7 @@ def main():
 
     print("Exporting description")
     description = [f"Multiclass confusion matrix:\n{full_cmatrix}", f"Pseudo-label confusion matrix:\n{binary_cmatrix}",
-                   "Random forest performance:\n" + "\n".join(output)]
+                   "SVC performance:\n" + "\n".join(output)]
     for k in sorted(np.unique(clustering)):
         if k == 0:
             continue

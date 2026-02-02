@@ -32,7 +32,7 @@ def get_args():
     parser.add_argument("--categorical_data", type=str, default="data/categorical_data.csv")
     parser.add_argument("--clustering_file", type=str, default="clusters.csv")
     parser.add_argument("--results_file", type=str, default="interpretation.csv")
-    parser.add_argument("--max_tests", type=int, default=20)
+    parser.add_argument("--max_tests", type=int, default=30)
 
     args = parser.parse_args()
 
