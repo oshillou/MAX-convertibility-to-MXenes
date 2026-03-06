@@ -1,0 +1,70 @@
+python = ".\\.conda\\python.exe"
+
+n_positive=16
+n_mxenes=10
+n_clusters = [150]
+years_list = [2012,2013,2014,2016,2017,2018,2019,2020,2024]
+
+rule all:
+    input:
+        "results/scoring/pu/pu_scores.csv",
+        expand("validation/timeline/scoring/{year}/pu/pu_scores.csv",
+            year=years_list,
+        ),
+        expand("validation/cross_validation/pu/fold_{k}_estimators_{T}.csv",
+            k=config["k_params"],
+            T=config["T_params"]
+        )
+
+rule main_pu_scoring:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels.csv"
+    output:
+        "results/scoring/pu/pu_scores.csv",
+    shell:
+        "{python} scripts/pu/main.py --continuous_data {input.continuous} --categorical_data {input.categorical}  --pu_labels {input.pu_labels} --T 100 --k 5 --scoring_file {output}"
+
+rule timeline_pu_scoring:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels_{year}.csv",
+    output:
+        "validation/timeline/scoring/{year}/pu/pu_scores.csv",
+    shell:
+        "{python} scripts/pu/main.py --continuous_data {input.continuous} --categorical_data {input.categorical}  --pu_labels {input.pu_labels} --T 100 --k 5 --scoring_file {output}"
+
+rule crossvalidation_pu_scoring:
+    input:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels.csv"
+    output:
+        "validation/cross_validation/pu/fold_{k}_estimators_{T}.csv"
+    shell:
+        "{python} scripts/pu/main.py --continuous_data {input.continuous} --categorical_data {input.categorical} --clustering_file {input.clustering} --T {wildcards.T} --k {wildcards.k} --results_file {output}"
+
+# For the timeline validation, this rule masks out convertible MAX phases that were discovered after a given year
+rule filter_targets_by_year:
+    input:
+        pu_labels="data/pu_labels.csv",
+        year_csv=config["path_to_label_years"],
+    output:
+        "data/pu_labels_{year}.csv"
+    shell:
+        "{python} scripts/data/filter_labels_by_year.py --pu_labels {input.pu_labels} --year_csv {input.year_csv} --year_cutoff {wildcards.year} --output_labels {output}"
+
+# This rule creates the dataset (scaled features from original source)
+rule make_dataset:
+    input:
+        calculated=config["path_to_calculated_data"],
+        elemental=config["path_to_elemental_data"],
+        synthesized=config["path_to_synthesized_data"],
+    output:
+        continuous="data/continuous_data.csv",
+        categorical="data/categorical_data.csv",
+        pu_labels="data/pu_labels.csv"
+    shell:
+        "{python} scripts/data/main.py --max_calculated \"{input.calculated}\" --max_elemental \"{input.elemental}\" --max_synthesized \"{input.synthesized}\" --output_continuous {output.continuous} --output_categorical {output.categorical} --output_targets {output.pu_labels}"
