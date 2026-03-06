@@ -9,20 +9,18 @@ years_list = [2011,2012,2013,2014,2016,2017,2018,2019,2020,2024]
 wildcard_constraints:
     n_clusters="\d+",
     validation_index="\d+",
-    leaveout_mode="(max_include|max_exclude|mx_include|mx_exclude)",
+    leaveout_mode="(max_include|mx_include)",
     scoring_model="(fasterrisk|forest)",
     model="(pumkl|pckmeans|kmeans|copkmeans)"
 
 def get_clustering_leaveout_params(wildcards):
-    phase, inclusion = wildcards.leaveout_mode.split("_")
+    phase, _ = wildcards.leaveout_mode.split("_")
     params = []
     if phase == "max":
         params += ["--validate_max"]
     else:
         params += ["--validate_mx"]
     params += [str(wildcards.validation_index)]
-    if inclusion=="exclude":
-        params += ["--exclude_validation"]
     return " ".join(params)
 
 
@@ -44,8 +42,7 @@ rule all:
             model=[config["clustering_model"]],
             n_clusters=[config["n_clusters"]]
         ),
-        expand("validation/max_{inclusion}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
-            inclusion=["include","exclude"],
+        expand("validation/max_include/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
             scoring_filename=[config["scoring_filename"]],
             model_filename=[config["clustering_filename"]],
             scoring_model=[config["scoring_model"]],
@@ -53,8 +50,7 @@ rule all:
             n_clusters=[config["n_clusters"]],
             validation_index = range(n_positive)
         ),
-        expand("validation/mx_{inclusion}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
-            inclusion=["include","exclude"],
+        expand("validation/mx_include/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
             scoring_filename=[config["scoring_filename"]],
             model_filename=[config["clustering_filename"]],
             scoring_model=[config["scoring_model"]],
@@ -106,7 +102,7 @@ rule validation_scoring:
         interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
         scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/{scoring_model}_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
     shell:
-        "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+        "{python} scripts/scoring/compute_{wildcards.scoring_model}.py --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 rule validation_scoring_svc:
     input:
@@ -119,7 +115,7 @@ rule validation_scoring_svc:
         interpretation="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_interpretation_val{validation_index}.txt",
         scores="validation/{leaveout_mode}/scoring/{scoring_filename}/{model_filename}/svc_{model}_{n_clusters}_scores_val{validation_index}.xlsx",
     shell:
-        "{python} scripts/scoring/compute_svc.py --exclude_validation --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --model_file {input.model} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
+        "{python} scripts/scoring/compute_svc.py --mx_validation {wildcards.validation_index} --continuous_data {input.continuous} --categorical_data {input.categorical} --pu_labels {input.pu_labels} --clustering_file {input.clustering} --model_file {input.model} --results_file {output.interpretation} --score_file {output.scores} "+config["scoring_params"]
 
 
 rule timeline_scoring:
@@ -175,8 +171,6 @@ rule main_scoring_svc:
 
 
 # performs the leave-"one"-out cross validation for the clustering model
-# Masked MAX or MX compounds may be included or excluded from the training set of a clustering algorithm
-# In both cases, their label is masked
 rule validate_clustering:
     input:
         continuous="data/continuous_data.csv",

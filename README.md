@@ -105,22 +105,6 @@ python scripts/analysis/summarise_max_validation.py --pu_labels data/pu_labels.c
 
 This will produce a text file summarising the validation metrics of this scenario and a heatmap showing how frequently each masked MAX phase was connected to the others.
 
-#### MAX-exclusion setup
-
-To run in excluding mode, simply add the flat `--exclude_validation`:
-
-```commandline
-python scripts/clustering/main.py --exclude_validation --validate_max 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_max_exclude/pumkl_150_val2.csv --model_file models/validate_max_exclude/pumkl_150_val2.pkl
-```
-
-For interpreting the output, use the same command line from interpretion of MAX-inclusion, and add the `--exclude_validation` flag.
-
-```commandline
-python scripts/analysis/interprete_validation.py --exclude_validation --max_validation 2 other_params
-```
-
-The validation can then be summarised using the same script as in the MAX-inclusion setup.
-
 #### MX-inclusion setup
 
 For clustering, the options are very similar to MAX-inclusion and MAX-exclusion. The flag `validate_max` is replaced by `validate_mx`. Note that in the case of MX validation, the number to provide must match one of the positive integers in the label file `data/pu_labels.csv`
@@ -144,20 +128,3 @@ python scripts/analysis/summarise_mx_validation.py --pu_labels data/pu_labels.cs
 ```
 
 This will produce a text file summarising the validation metrics of this scenario and a heatmap showing how frequently each masked MAX phase was connected to the others.
-
-#### MX-exclusion setup
-
-By analogy to the MAX-exclude case, only an additional flag is need for exclusion:
-
-```commandline
-python scripts/clustering/main.py --exclude_validation --validate_mx 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/pumkl_150_val2.csv --model_file models/pumkl_150_val2.pkl
-```
-
-For interpreting the output, use the same command line from interpretion of MX-inclusion, and add the `--exclude_validation` flag.
-
-```commandline
-python scripts/analysis/interprete_validation.py --exclude_validation --mx_validation 2 other_params
-```
-
-
-The validation can then be summarised using the same script as in the MX-inclusion setup.

@@ -27,7 +27,6 @@ def get_args():
     parser.add_argument("--seed", default=None, type=int)
     parser.add_argument("--validate_max", type=int, default=-1)
     parser.add_argument("--validate_mxene", type=int, default=-1)
-    parser.add_argument("--exclude_validation", default=False, action="store_true")
     parser.add_argument("--verbose", default=False, action="store_true")
 
     args = parser.parse_args()
@@ -65,11 +64,7 @@ def main():
     y[validation_indices==1] = 0
     y = (y>0).astype(int)
 
-    if args.exclude_validation:
-        X_validation, y_validation = X[validation_indices==1], y[validation_indices==1]
-        X_train, y_train = X[validation_indices==0], y[validation_indices==0]
-    else:
-        X_train, y_train = X, y
+    X_train, y_train = X, y
 
 
     verbose_print(args, "Performing clustering")
@@ -118,17 +113,7 @@ def main():
 
 
     verbose_print(args, "Converting clusters to positive/negative clusters")
-    if args.exclude_validation:
-        clustering_train = model.labels_
-        if args.clustering_model!="pumkl":
-            clustering_validation = model.predict(X_validation)
-        else:
-            clustering_validation = model.predict(X_validation, y_train)
-        clustering = np.zeros(len(validation_indices))
-        clustering[validation_indices==0] = clustering_train
-        clustering[validation_indices==1] = clustering_validation
-    else:
-        clustering = model.labels_
+    clustering = model.labels_
     positive_clusters = np.unique(clustering[y==1])
     final_clusters = np.zeros(len(X), dtype=int)
     for i, k in enumerate(positive_clusters):
