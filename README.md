@@ -15,11 +15,8 @@ The interpretable classifier at the end of the pipeline is `Fasterrisk`.
 
 To run this code, we used `Python 3.9`.
 
-+ Please be careful to reinstall `matplotlib==3.2.2` after installing fasterrisk. The requirements in fasterrisk are too constraining, and this violation will not be harmful.
 + `pulp<2.8` is needed because a recent update made it [broken with snakemake](https://github.com/snakemake/snakemake/issues/2607)
 + `openpyxl` is needed for reading the excel sheet
-
-=> note that installing `pulearn` switched scikit-learn from 1.2.0 to 1.5.2.
 
 ## Running the pipeline
 

@@ -86,7 +86,6 @@ def main():
     X_cont = pd.read_csv(args.continuous_data, index_col=0)
     # In the case of SVC, we need to maintain the preprocessing in order to use the original kernels
     # that were used by pumkl
-    # In contrast, fasterrisk and random forests are insensitive to scaling (only ordering matters)
     X_cont = pd.DataFrame(preprocessing.MinMaxScaler().fit_transform(X_cont), columns=X_cont.columns, index=X_cont.index)
     X_cat = pd.read_csv(args.categorical_data, index_col=0)
     X = pd.concat([X_cont, X_cat], axis=1)
