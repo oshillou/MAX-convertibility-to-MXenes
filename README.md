@@ -9,7 +9,7 @@ This repository contains an entire pipeline for identifying potential MXenes tha
 
 In this code, 4 different clustering algorithms are displayed: `KMeans`, `COPKMeans`, `PCKMeans` and `PUMKL`, which is a variant of `KernelSSC`.
 
-The interpretable classifier at the end of the pipeline is `Fasterrisk`.
+The interpretable classifier at the end of the pipeline is `SVC`.
 
 ## Installation advice
 
@@ -66,15 +66,15 @@ This script returns 1 output: the convertibility score of each MAX phase to an M
 
 ### Validation runs
 
-There are 4 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MAX-exclusion*, *MX-inclusion*, *MX-exclusion*.
+There are 4 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MX-inclusion*.
 
-In an *inclusion* setup, only the labels of a set of materials (or just one) are masked. The materials are still part of the training set both for the clustering algorithm and the Fasterrisk interpretation. In the *exclusion* scenario, that set of materials is held out, like an actual test set.
+Only the labels of a set of materials (or just one) are masked. The materials are still part of the training set both for the clustering algorithm and the scoring.
 
-We can consider two different sets of compounds to act upon for validation. We can either mask/exclude a specific MAX phase precursor (*MAX* mode), or we can mask/exclude an entire set of MAX precursors that share a common MXene (*MX* mode).
+We can consider two different sets of compounds to act upon for validation. We can either mask a specific MAX phase precursor (*MAX* mode), or we can mask an entire set of MAX precursors that share a common MXene (*MX* mode).
 
 #### MAX-inclusion setup
 
-To exclude a MAX precusors, simply specify its number in the command line. Here, we mask the 3rd labeled MAX phase:
+To mask a MAX precusor, simply specify its number in the command line. Here, we mask the 3rd labeled MAX phase:
 
 ```commandline
 python scripts/clustering/main.py --validate_max 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_max_include/pumkl_150_val2.csv --model_file models/validate_max_include/pumkl_150_val2.pkl
@@ -90,7 +90,7 @@ For `other_params`, refer to the main scoring script in the previous section.
 
 #### MX-inclusion setup
 
-For clustering, the options are very similar to MAX-inclusion and MAX-exclusion. The flag `validate_max` is replaced by `validate_mx`. Note that in the case of MX validation, the number to provide must match one of the positive integers in the label file `data/pu_labels.csv`
+For clustering, the options are very similar to MAX-inclusion. The flag `validate_max` is replaced by `validate_mx`. Note that in the case of MX validation, the number to provide must match one of the positive integers in the label file `data/pu_labels.csv`
 
 ```commandline
 python scripts/clustering/main.py --validate_mx 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_mx_include/pumkl_150_val2.csv --model_file models/validate_mx_include/pumkl_150_val2.pkl
