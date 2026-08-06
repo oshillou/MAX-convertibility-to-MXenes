@@ -1,0 +1,58 @@
+Multiclass confusion matrix:
+[[2093   91    7   28   10   17]
+ [   0   12    1    1    1    1]
+ [   0    0    0    0    0    0]
+ [   0    0    0    0    0    0]
+ [   0    0    0    0    0    0]
+ [   0    0    0    0    0    0]]
+Pseudo-label confusion matrix:
+[[2093  153]
+ [   0   16]]
+SVC performance:
+Fitting a random forest to assess performances
+Accuracy of SVC with pseudo-labels: 0.9871794871794872
+F1 score with pseudo-labels 0.9187675070028011
+AUC with pseudo-labels: 0.9943485894090474
+Confusion matrix between SVC and pseudo-labels
+[[2069   24]
+ [   5  164]]
+Same confusion matrix restricted to positive samples
+[[16]]
+Synthesizable MAX phases that were predicted as negative by this model
+Empty DataFrame
+Columns: [M_M_atomic_mass, M_M_atomic_radius, M_M_atomic_radius_calculated, M_M_van_der_waals_radius, M_M_average_ionic_radius, M_M_average_anionic_radius, M_M_electron_affinity, M_M_electronegativity, M_M_first_ionization_energy, M_M_second_ionization_energy, M_M_valence_electrons, M_M_row, A_A_atomic_mass, A_A_atomic_radius, A_A_atomic_radius_calculated, A_A_van_der_waals_radius, A_A_average_ionic_radius, A_A_average_cationic_radius, A_A_average_anionic_radius, A_A_electron_affinity, A_A_electronegativity, A_A_first_ionization_energy, A_A_second_ionization_energy, A_A_valence_electrons, A_A_row, X_X_atomic_mass, X_X_atomic_radius, n, a, c, dMX, dMM, dMA, dAA, rMX, rMA, e_M, e_A, e_X, dEc, mass, mass.pa, volume, volume.pa, density, dEf, E_pa, dH, a_g_7, a_g_8, a_g_9, a_g_10, a_g_11, a_g_12, a_g_13, a_g_14, a_g_15, a_g_16, m_g_3, m_g_4, m_g_5, m_g_6, m_g_7, m_g_8]
+Index: []
+Performing feature importance
+Top 20 feature importances are:
+Index(['M_M_first_ionization_energy', 'M_M_electron_affinity', 'a_g_13',
+       'a_g_16', 'n', 'a_g_15', 'A_A_average_anionic_radius',
+       'M_M_electronegativity', 'X_X_atomic_radius', 'X_X_atomic_mass',
+       'M_M_atomic_radius', 'M_M_second_ionization_energy',
+       'A_A_electronegativity', 'M_M_valence_electrons', 'a_g_14', 'm_g_8',
+       'm_g_6', 'm_g_4', 'm_g_5', 'A_A_first_ionization_energy'],
+      dtype='object')
+[0.00276379 0.00544305 0.00593186 0.0067882  0.0079753  0.00902275
+ 0.009699   0.0162483  0.01720754 0.01720754 0.01747216 0.01992355
+ 0.02229409 0.02622294 0.02632952 0.03943916 0.04886618 0.07897754
+ 0.11060311 0.12934323]
+Compounds in cluster 1
+	=> Ti2AlC
+	=> Ti2ZnC
+	=> Ti2GaC
+	=> V2AlC
+	=> Nb2AlC
+	=> Ti3AlC2
+	=> Ti3SiC2
+	=> Ti3ZnC2
+	=> Ti3SnC2
+	=> V4AlC3
+	=> Nb4AlC3
+	=> Ti2AlN
+Compounds in cluster 2
+	=> Ta2AlC
+Compounds in cluster 3
+	=> Ta4AlC3
+Compounds in cluster 4
+	=> Ti2SC
+Compounds in cluster 5
+	=> Ti4AlN3

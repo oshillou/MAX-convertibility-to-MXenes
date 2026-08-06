@@ -11,6 +11,10 @@ In this code, 4 different clustering algorithms are displayed: `KMeans`, `COPKMe
 
 The interpretable classifier at the end of the pipeline is `SVC`.
 
+## Direct results
+
+We provide the Excel sheet with scores and original cluster from all 2,262 MAX precursors considered in our paper. The sheet can be found at `results/scoring/svc_5/pumkl/`. Or click [here](results/scoring/svc_5/pumkl/svc_pumkl_150_scores.xlsx).
+
 ## Installation advice
 
 To run this code, we used `Python 3.9`.
@@ -66,7 +70,7 @@ This script returns 1 output: the convertibility score of each MAX phase to an M
 
 ### Validation runs
 
-There are 4 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MX-inclusion*.
+There are 2 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MX-inclusion*.
 
 Only the labels of a set of materials (or just one) are masked. The materials are still part of the training set both for the clustering algorithm and the scoring.
 
