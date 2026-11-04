@@ -38,7 +38,6 @@ def get_args():
     parser.add_argument("--score_file", type=str, default="score.xlsx")
     parser.add_argument("--max_validation", type=int, default=None)
     parser.add_argument("--mx_validation", type=int, default=None)
-    parser.add_argument("--exclude_validation", default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -87,7 +86,6 @@ def main():
     X_cont = pd.read_csv(args.continuous_data, index_col=0)
     # In the case of SVC, we need to maintain the preprocessing in order to use the original kernels
     # that were used by pumkl
-    # In contrast, fasterrisk and random forests are insensitive to scaling (only ordering matters)
     X_cont = pd.DataFrame(preprocessing.MinMaxScaler().fit_transform(X_cont), columns=X_cont.columns, index=X_cont.index)
     X_cat = pd.read_csv(args.categorical_data, index_col=0)
     X = pd.concat([X_cont, X_cat], axis=1)
@@ -115,8 +113,6 @@ def main():
         validation_indices = np.array([np.nonzero(y)[0][args.max_validation]])
     elif args.mx_validation is not None:
         validation_indices = train_indices[y == args.mx_validation + 1]
-    if len(validation_indices) != 0 and args.exclude_validation:
-        train_indices = np.setxor1d(train_indices, validation_indices)
 
     # Now that we use the actual targets (with MXene groups) for computing the validation sets
     # We may convert it again to binary target for "(not) synthesizable"
@@ -135,32 +131,15 @@ def main():
         svc_model.fit(X.iloc[train_indices], pseudo_labels[train_indices], sample_weight=sample_weights)
         y_prob = svc_model.predict_proba(X)
         y_pred = y_prob.argmax(1)
-        if not args.exclude_validation:
-            print("Accuracy of SVC with pseudo-labels:", metrics.accuracy_score(pseudo_labels, y_pred))
-            print("F1 score with pseudo-labels", metrics.f1_score(pseudo_labels, y_pred))
-            print("AUC with pseudo-labels:", metrics.roc_auc_score(pseudo_labels, y_prob[:,1]))
-            print("Confusion matrix between SVC and pseudo-labels")
-            print(metrics.confusion_matrix(pseudo_labels, y_pred))
-            print("Same confusion matrix restricted to positive samples")
-            print(metrics.confusion_matrix(pseudo_labels[y==1], y_pred[y==1]))
-            print("Synthesizable MAX phases that were predicted as negative by this model")
-            print(X[(y==1)&(y_pred==0.5)])
-        else:
-            for name, idx in zip(["Train", "Val"], [train_indices, validation_indices]):
-                print(f"{name} scores", "-"*10)
-                print("Accuracy with pseudo-labels:", metrics.accuracy_score(pseudo_labels[idx], y_pred[idx]>0.5))
-                if name=="Train":
-                    print("F1 score with pseudo-labels", metrics.f1_score(pseudo_labels[idx], y_pred[idx]>0.5))
-                    print("AUC with pseudo-labels:", metrics.roc_auc_score(pseudo_labels[idx], y_pred[idx]))
-                    print("Confusion matrix between predictions and pseudo-labels")
-                    print(metrics.confusion_matrix(pseudo_labels[idx], y_pred[idx]>0.5))
-                    print("Same confusion matrix restricted to positive samples")
-                    print(metrics.confusion_matrix(pseudo_labels[idx][y[idx]==1], y_pred[idx][y[idx]==1]>0.5))
-                else:
-                    print("Accuracy with ground PU truth", metrics.accuracy_score(y[idx], y_pred[idx]>0.5))
-                print("Synthesizable MAX phases that were predicted as negative by this model")
-                print(X.iloc[idx][(y[idx]==1)&(y_pred[idx]<=0.5)])
-
+        print("Accuracy of SVC with pseudo-labels:", metrics.accuracy_score(pseudo_labels, y_pred))
+        print("F1 score with pseudo-labels", metrics.f1_score(pseudo_labels, y_pred))
+        print("AUC with pseudo-labels:", metrics.roc_auc_score(pseudo_labels, y_prob[:,1]))
+        print("Confusion matrix between SVC and pseudo-labels")
+        print(metrics.confusion_matrix(pseudo_labels, y_pred))
+        print("Same confusion matrix restricted to positive samples")
+        print(metrics.confusion_matrix(pseudo_labels[y==1], y_pred[y==1]))
+        print("Synthesizable MAX phases that were predicted as negative by this model")
+        print(X[(y==1)&(y_pred==0.5)])
         print("Performing feature importance")
         # Finally, perform feature importance
         # https://scikit-learn.org/stable/auto_examples/ensemble/plot_forest_importances.html

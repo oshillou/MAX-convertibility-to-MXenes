@@ -11,7 +11,7 @@ k_params:
   - 5
   - 10
   - 16
-path_to_calculated_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_calculated.csv"
-path_to_elemental_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/max_elemental.csv"
-path_to_synthesized_data: "C:/Users/louoh08/OneDrive - Linköpings universitet/Documents/Postdoc project/Data/synthesized-MXenes-MAX.xlsx"
-path_to_label_years: "MAX_MX_year.csv"
+path_to_calculated_data: "./data/max_calculated.csv"
+path_to_elemental_data: "./data/max_elemental.csv"
+path_to_synthesized_data: "./data/synthesized-MXenes-MAX.xlsx"
+path_to_label_years: "./data/MAX_MX_year.csv"

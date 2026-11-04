@@ -1,6 +1,5 @@
 setuptools
 scikit-learn<1.6.0
-fasterrisk
 matplotlib==3.9.2
 jax
 jaxlib

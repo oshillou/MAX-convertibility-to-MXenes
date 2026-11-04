@@ -9,17 +9,18 @@ This repository contains an entire pipeline for identifying potential MXenes tha
 
 In this code, 4 different clustering algorithms are displayed: `KMeans`, `COPKMeans`, `PCKMeans` and `PUMKL`, which is a variant of `KernelSSC`.
 
-The interpretable classifier at the end of the pipeline is `Fasterrisk`.
+The interpretable classifier at the end of the pipeline is `SVC`.
+
+## Direct results
+
+We provide the Excel sheet with scores and original cluster from all 2,262 MAX precursors considered in our paper. The sheet can be found at `results/scoring/svc_5/pumkl/`. Or click [here](results/scoring/svc_5/pumkl/svc_pumkl_150_scores.xlsx).
 
 ## Installation advice
 
 To run this code, we used `Python 3.9`.
 
-+ Please be careful to reinstall `matplotlib==3.2.2` after installing fasterrisk. The requirements in fasterrisk are too constraining, and this violation will not be harmful.
 + `pulp<2.8` is needed because a recent update made it [broken with snakemake](https://github.com/snakemake/snakemake/issues/2607)
 + `openpyxl` is needed for reading the excel sheet
-
-=> note that installing `pulearn` switched scikit-learn from 1.2.0 to 1.5.2.
 
 ## Running the pipeline
 
@@ -31,9 +32,10 @@ snakemake all
 
 This will execute both the main experiments and the validation experiments. This execution will create multiple folders:
 
-+ `results` contains the raw clustering output of each clustering algorithm. Note that subfolders will be created for the different validation scenarios.
-+ `analysis` contains the output of the `Fasterrisk` model applied on each clustering output, as well as summaries of the different validation scenarios.
-+ `models` that stores all different model parameters after training for reusability purposes.
++ `results/clustering` contains the raw clustering output of each clustering algorithm. Note that subfolders will be created for the different validation scenarios.
++ `results/scoring` contains the output of the scoring model applied on each clustering output.
++ `results/visualisation` contains t-SNEs of the different clusterings.
++ `validation` will contain the validation outcomes for the different setups: timeline validation, cros-validation of the scoring method, MAX or MX masked out. Each subfolder follows approximately the same structure as `results`.
 
 
 In case it does not work, we provide here the command lines step by step.
@@ -58,32 +60,25 @@ python scripts/clustering/main.py --seed 0 --continuous_data data/continuous_dat
 
 Other available clustering algorithm options are `kmeans`, `copkmeans`, and `pckmeans`.
 
-Once this was executed, the clustering output can be interpreted using Fasterrisk. To that end, a second script is provided. Simply execute:
+Once this is executed, the clustering output can be scored `SVC`. To that end, a second script is provided. Simply execute:
 
 ```commandline
-python scripts/analysis/interprete.py --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --clustering_file results/pumkl_150.csv --tsne_file analysis/pumkl_150_tsne.pdf --results_file analysis/pumkl_150_intepretation.txt --score_file analysis/pumkl_150_scores.xlsx --feature_importance analysis/pumkl_150_feature_importance.csv
+python scripts/scoring/compute_svc.py --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --clustering_file results/pumkl_150.csv --results_file analysis/pumkl_150_intepretation.txt --score_file analysis/pumkl_150_scores.xlsx
 ```
 
-This script returns 4 outputs:
-
-+ A tsne projection of the clustering, with the samples coloured according to their belonging to positive/negative clusters
-+ An interpretation file that describes the 10 different rule models that were produced by Fasterrisk. It is a plain text file to read.
-+ An Excel file applying on each sheet its respective decision model and scoring the dataset.
-+ A feature importance file (csv) describing the results of a feature importance analysis when fitting a random forest to the positive/negative clusters.
-
-Of course, there are other ways of deriving **scores** from a clustering and map them to the notion of convertibility. One such straightforward way is via distances between samples and positive clusters.
+This script returns 1 output: the convertibility score of each MAX phase to an MXene.
 
 ### Validation runs
 
-There are 4 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MAX-exclusion*, *MX-inclusion*, *MX-exclusion*.
+There are 2 main ways of doing validation in this pipeline, respectively called *MAX-inclusion*, *MX-inclusion*.
 
-In an *inclusion* setup, only the labels of a set of materials (or just one) are masked. The materials are still part of the training set both for the clustering algorithm and the Fasterrisk interpretation. In the *exclusion* scenario, that set of materials is held out, like an actual test set.
+Only the labels of a set of materials (or just one) are masked. The materials are still part of the training set both for the clustering algorithm and the scoring.
 
-We can consider two different sets of compounds to act upon for validation. We can either mask/exclude a specific MAX phase precursor (*MAX* mode), or we can mask/exclude an entire set of MAX precursors that share a common MXene (*MX* mode).
+We can consider two different sets of compounds to act upon for validation. We can either mask a specific MAX phase precursor (*MAX* mode), or we can mask an entire set of MAX precursors that share a common MXene (*MX* mode).
 
 #### MAX-inclusion setup
 
-To exclude a MAX precusors, simply specify its number in the command line. Here, we mask the 3rd labeled MAX phase:
+To mask a MAX precusor, simply specify its number in the command line. Here, we mask the 3rd labeled MAX phase:
 
 ```commandline
 python scripts/clustering/main.py --validate_max 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_max_include/pumkl_150_val2.csv --model_file models/validate_max_include/pumkl_150_val2.pkl
@@ -92,38 +87,14 @@ python scripts/clustering/main.py --validate_max 2 --continuous_data data/contin
 The same logic applies for interpretation. Simply add the `max_validation` flag:
 
 ```commandline
-python scripts/analysis/interprete_validation.py --max_validation 2 other_params
+python scripts/scoring/compute_svc.py --max_validation 2 other_params
 ```
 
-For `other_params`, refer to the main interpretation script in the previous section.
-
-After running the validation for all different 16 MAX precursors, the validation can be summarised using the following command:
-
-```commandline
-python scripts/analysis/summarise_max_validation.py --pu_labels data/pu_labels.csv --clustering_files results/validate_max_include/pumkl_150_val0.csv ... results/validate_max_include/pumkl_150_val15.csv --validation_file analysis/validate_max_include/pumkl_150_validation.txt --validation_heatmap analysis/validate_max_include/pumkl_150_connectivity.pdf
-```
-
-This will produce a text file summarising the validation metrics of this scenario and a heatmap showing how frequently each masked MAX phase was connected to the others.
-
-#### MAX-exclusion setup
-
-To run in excluding mode, simply add the flat `--exclude_validation`:
-
-```commandline
-python scripts/clustering/main.py --exclude_validation --validate_max 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_max_exclude/pumkl_150_val2.csv --model_file models/validate_max_exclude/pumkl_150_val2.pkl
-```
-
-For interpreting the output, use the same command line from interpretion of MAX-inclusion, and add the `--exclude_validation` flag.
-
-```commandline
-python scripts/analysis/interprete_validation.py --exclude_validation --max_validation 2 other_params
-```
-
-The validation can then be summarised using the same script as in the MAX-inclusion setup.
+For `other_params`, refer to the main scoring script in the previous section.
 
 #### MX-inclusion setup
 
-For clustering, the options are very similar to MAX-inclusion and MAX-exclusion. The flag `validate_max` is replaced by `validate_mx`. Note that in the case of MX validation, the number to provide must match one of the positive integers in the label file `data/pu_labels.csv`
+For clustering, the options are very similar to MAX-inclusion. The flag `validate_max` is replaced by `validate_mx`. Note that in the case of MX validation, the number to provide must match one of the positive integers in the label file `data/pu_labels.csv`
 
 ```commandline
 python scripts/clustering/main.py --validate_mx 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/validate_mx_include/pumkl_150_val2.csv --model_file models/validate_mx_include/pumkl_150_val2.pkl
@@ -132,32 +103,7 @@ python scripts/clustering/main.py --validate_mx 2 --continuous_data data/continu
 For interpretation, simply add the `mx_validation` flag:
 
 ```commandline
-python scripts/analysis/interprete_validation.py --mx_validation 2 other_params
+python scripts/scoring/compute_svc.py --mx_validation 2 other_params
 ```
 
 For `other_params`, refer to the main interpretation script in the previous section.
-
-After running the validation for all different 10 MXenes, the validation can be summarised using the following command:
-
-```commandline
-python scripts/analysis/summarise_mx_validation.py --pu_labels data/pu_labels.csv --clustering_files results/validate_mx_include/pumkl_150_val0.csv ... results/validate_max_include/pumkl_150_val9.csv --validation_file analysis/validate_mx_include/pumkl_150_validation.txt --validation_heatmap analysis/validate_mx_include/pumkl_150_connectivity.pdf
-```
-
-This will produce a text file summarising the validation metrics of this scenario and a heatmap showing how frequently each masked MAX phase was connected to the others.
-
-#### MX-exclusion setup
-
-By analogy to the MAX-exclude case, only an additional flag is need for exclusion:
-
-```commandline
-python scripts/clustering/main.py --exclude_validation --validate_mx 2 --continuous_data data/continuous_data.csv --categorical_data data/categorical_data.csv --pu_labels data/pu_labels.csv --n_clusters 150 --clustering_model pumkl --clustering_file results/pumkl_150_val2.csv --model_file models/pumkl_150_val2.pkl
-```
-
-For interpreting the output, use the same command line from interpretion of MX-inclusion, and add the `--exclude_validation` flag.
-
-```commandline
-python scripts/analysis/interprete_validation.py --exclude_validation --mx_validation 2 other_params
-```
-
-
-The validation can then be summarised using the same script as in the MX-inclusion setup.
